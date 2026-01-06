@@ -1,0 +1,20 @@
+{
+  "short_name": "PetFile",
+  "name": "PetFile - Pet Health Record",
+  "icons": [
+    {
+      "src": "images/logo.png", 
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "images/logo.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#007bff"
+}

@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PetFile - Pet Health Record</title>
+    <link rel="icon" type="image/png" href="images/logo.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#FFFBF5">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+
+    <style>
+        :root {
+            --font-family: 'Nunito', 'Helvetica Neue', Arial, sans-serif;
+            --primary-orange: #F9A825;
+            --primary-purple: #8E44AD;
+            --primary-green: #2ECC71;
+            --primary-blue: #3498DB;
+            --primary-gray: #95a5a6;
+            --primary-red: #e74c3c;
+            --bg-color: #FFFBF5;
+            --card-bg: #FFFFFF;
+            --text-dark: #333;
+            --text-light: #555;
+            --border-color: #f0f0f0;
+        }
+
+        body { font-family: var(--font-family); margin: 0; background-color: var(--bg-color); color: var(--text-dark); }
+        .app-container { max-width: 414px; margin: 0 auto; min-height: 100vh; background-color: var(--card-bg); box-shadow: 0 0 10px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
+        .page { display: none; min-height: 100vh; background-color: var(--bg-color); }
+        .page.active { display: block; }
+        .page.detail-page { padding: 0; background-color: var(--card-bg); }
+        .page.list-page { padding: 16px; }
+
+        /* Login */
+        #page-login { flex-direction: column; justify-content: center; padding: 24px; box-sizing: border-box; }
+        #page-login.active { display: flex; }
+        .login-logo-img {
+            display: block;
+            width: 120px;       /* Adjust this size to fit your logo */
+            height: auto;       /* Maintains aspect ratio */
+            margin: 0 auto 24px auto; /* Centers the image */
+        }
+        .form-group { margin-bottom: 16px; }
+        .form-group input { width: 100%; padding: 14px 18px; border: 1px solid #eee; border-radius: 12px; box-sizing: border-box; font-family: var(--font-family); font-size: 16px; }
+        .btn { width: 100%; padding: 16px; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: var(--font-family); text-align: center; text-decoration: none; }
+        .btn-primary { background-color: var(--primary-orange); color: white; box-shadow: 0 4px 15px rgba(249, 168, 37, 0.4); }
+        .btn-danger { background-color: var(--primary-red); color: white; box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4); }
+        .login-links { text-align: center; margin-top: 24px; font-size: 14px; }
+        .login-links a { color: var(--primary-orange); text-decoration: none; font-weight: 700; }
+
+        /* Dashboard */
+        .header { font-size: 24px; font-weight: 800; padding: 8px 0; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .header-profile { width: 40px; height: 40px; border-radius: 50%; background-color: #eee; font-size: 26px; text-align: center; line-height: 40px; cursor: pointer; }
+        .learn-list { display: flex; flex-direction: column; gap: 16px; }
+        .learn-card { background-color: var(--card-color); border-radius: 20px; padding: 20px; display: flex; align-items: center; color: white; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .learn-icon { width: 60px; height: 60px; margin-right: 16px; font-size: 40px; text-align: center; }
+        .learn-text strong { display: block; font-size: 20px; font-weight: 800; }
+        .learn-text p { margin: 4px 0 0 0; font-size: 14px; opacity: 0.9; }
+
+        /* Details */
+        .detail-header { background-color: var(--card-color); padding: 20px; padding-bottom: 50px; border-radius: 0 0 30px 30px; text-align: center; }
+        .detail-nav { text-align: left; font-size: 28px; color: white; cursor: pointer; font-weight: 800; }
+        .detail-hero-image { width: 180px; height: 180px; margin-top: 10px; font-size: 120px; line-height: 180px; }
+        .detail-content { background-color: var(--card-bg); border-radius: 30px 30px 0 0; margin-top: -30px; position: relative; z-index: 10; padding: 24px; min-height: 50vh;}
+        .detail-title-block { margin-bottom: 24px; }
+        .detail-title-block strong { font-size: 28px; font-weight: 800; }
+        .detail-info-row { display: flex; justify-content: space-between; align-items: center; font-size: 16px; padding: 16px 0; border-bottom: 1px solid var(--border-color); }
+        .section-title { font-size: 20px; font-weight: 800; margin: 24px 0 16px 0; }
+        
+        /* Timeline */
+        .timeline-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color); }
+        .timeline-icon { width: 40px; height: 40px; border-radius: 50%; margin-right: 16px; display: flex; align-items: center; justify-content: center; font-size: 20px; background-color: #f0f0f0; flex-shrink: 0;}
+        .timeline-content h5 { margin: 0 0 4px 0; font-size: 16px; font-weight: 700; }
+        .timeline-content p { margin: 0; font-size: 14px; color: var(--text-light); }
+        
+        .fab { position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px; border-radius: 16px; border: none; background-color: var(--card-color); color: white; font-size: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); cursor: pointer; z-index: 100; }
+
+        /* Forms */
+        .form-group-new { margin-bottom: 16px; }
+        .form-group-new label { font-weight: 700; font-size: 14px; display: block; margin-bottom: 8px; color: var(--text-dark); }
+        .form-group-new input, .form-group-new select, .form-group-new textarea { width: 100%; padding: 14px 18px; border: 1px solid #eee; background-color: #f9f9f9; border-radius: 12px; box-sizing: border-box; font-family: var(--font-family); font-size: 16px; }
+        .form-group-new textarea { min-height: 100px; resize: vertical; }
+        .pet-list-item { display: flex; align-items: center; padding: 12px; background: #f9f9f9; border-radius: 12px; cursor: pointer; border: 1px solid var(--border-color); margin-bottom: 10px; }
+        .pet-list-item-icon { font-size: 30px; margin-right: 16px; }
+
+        /* Logging */
+        .symptom-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
+        .symptom-card { background: #f9f9f9; border: 2px solid #eee; border-radius: 12px; padding: 15px; text-align: center; cursor: pointer; transition: 0.2s; }
+        .symptom-card.selected { border-color: var(--primary-orange); background-color: #fff8e1; }
+        .symptom-icon { font-size: 24px; display: block; margin-bottom: 5px; }
+        .context-questions-box { background-color: #e8f6f3; border-left: 4px solid var(--primary-green); padding: 15px; border-radius: 8px; margin-top: 15px; display: none; }
+        .question-item { margin-bottom: 12px; }
+        .question-item label { font-weight: 700; font-size: 14px; display: block; margin-bottom: 5px; }
+        .question-options { display: flex; gap: 10px; flex-wrap: wrap; }
+        .radio-label { background: white; padding: 6px 12px; border-radius: 20px; border: 1px solid #ccc; font-size: 13px; cursor: pointer; }
+        .radio-label input { margin-right: 5px; }
+
+        /* --- VET LIST STYLES --- */
+        .search-bar-container { position: sticky; top: 0; background: var(--bg-color); padding-bottom: 10px; z-index: 5; }
+        .vet-card { display: flex; align-items: center; background: white; padding: 15px; border-radius: 16px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .vet-img { width: 50px; height: 50px; border-radius: 50%; background: #eee; font-size: 30px; text-align: center; line-height: 50px; margin-right: 15px; }
+        .vet-info { flex: 1; }
+        .vet-name { font-weight: 800; font-size: 16px; margin-bottom: 2px; display: block; }
+        .vet-sub { font-size: 13px; color: #777; }
+        .vet-status { font-size: 12px; font-weight: 700; margin-top: 4px; display: inline-block; padding: 2px 8px; border-radius: 10px; }
+        .vet-status.online { background: #e8f5e9; color: #2e7d32; }
+        .vet-status.offline { background: #f5f5f5; color: #757575; }
+        .vet-status.busy { background: #ffebee; color: #c62828; }
+        .vet-action { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; }
+
+        /* --- CHAT STYLES --- */
+        .chat-container { display: flex; flex-direction: column; height: 60vh; background: #f9f9f9; border-radius: 20px; margin-bottom: 15px; overflow: hidden; border: 1px solid #eee;}
+        .chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .chat-input-area { padding: 10px; background: white; border-top: 1px solid #eee; display: flex; gap: 10px; }
+        .msg-bubble { padding: 10px 14px; border-radius: 18px; max-width: 80%; font-size: 14px; line-height: 1.4; }
+        .msg-bubble.user { background-color: var(--primary-blue); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+        .msg-bubble.vet { background-color: #e0e0e0; color: #333; align-self: flex-start; border-bottom-left-radius: 4px; }
+        .status-dot { display: inline-block; width: 10px; height: 10px; background: var(--primary-green); border-radius: 50%; margin-right: 5px; }
+        
+        #video-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #111; z-index: 9999; display: none; flex-direction: column; justify-content: space-between; padding: 40px 20px; color: white; text-align: center; }
+        .video-caller-img { width: 120px; height: 120px; border-radius: 50%; background: #444; margin: 40px auto 20px; line-height: 120px; font-size: 60px; border: 3px solid white; animation: pulse 2s infinite; }
+        .video-controls { display: flex; justify-content: center; gap: 30px; margin-bottom: 40px; }
+        .v-btn { width: 60px; height: 60px; border-radius: 50%; border: none; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .v-btn.end { background: var(--primary-red); color: white; }
+        .v-btn.mute { background: #555; color: white; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4); } 70% { box-shadow: 0 0 0 20px rgba(255, 255, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); } }
+    
+        #page-register { 
+            flex-direction: column; 
+            justify-content: center; 
+            padding: 24px; 
+            box-sizing: border-box; 
+        }
+        #page-register.active { display: flex; }
+
+        /* --- COMMUNITY STYLES --- */
+        .comm-header { background: linear-gradient(135deg, var(--primary-orange), var(--primary-red)); padding: 20px; color: white; border-radius: 0 0 20px 20px; text-align: center; }
+        .comm-tabs { display: flex; margin-top: 10px; background: #eee; padding: 4px; border-radius: 12px; }
+        .comm-tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; border-radius: 10px; font-weight: 700; font-size: 14px; color: #777; transition: 0.3s; }
+        .comm-tab.active { background: white; color: var(--primary-orange); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+        /* Protocols Section */
+        .protocol-card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid #eee; }
+        .protocol-title { font-weight: 800; font-size: 18px; margin-bottom: 10px; display: flex; align-items: center; }
+        .warning-box { background: #ffebee; border-left: 4px solid var(--primary-red); padding: 12px; border-radius: 8px; margin-bottom: 10px; }
+        .tip-box { background: #e8f5e9; border-left: 4px solid var(--primary-green); padding: 12px; border-radius: 8px; margin-bottom: 10px; }
+
+        /* Forum Section */
+        .post-card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .post-user { font-weight: 700; font-size: 14px; margin-bottom: 4px; display: block; color: var(--primary-blue); }
+        .post-content { font-size: 15px; line-height: 1.4; color: #333; }
+        .post-meta { font-size: 12px; color: #999; margin-top: 8px; display: flex; justify-content: space-between; }
+        .fab-post { position: fixed; bottom: 30px; right: 30px; width: 56px; height: 56px; border-radius: 50%; background: var(--primary-blue); color: white; font-size: 24px; border: none; box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4); cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 100;}
+    
+        .apt-card {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .apt-card:active { transform: scale(0.98); }
+
+        /* Status Badges */
+        .apt-status { font-size: 11px; padding: 4px 8px; border-radius: 8px; font-weight: 800; text-transform: uppercase; }
+        .apt-status.upcoming { background: #e3f2fd; color: #1976d2; }
+        .apt-status.done { background: #e8f5e9; color: #2e7d32; }
+        .apt-status.missed { background: #ffebee; color: #c62828; }
+
+        .apt-date { font-weight: 800; font-size: 16px; color: var(--text-dark); }
+        .apt-sub { font-size: 13px; color: #777; margin-top: 2px; }
+
+        /* Notification Banner */
+        .vaccine-alert {
+            background: #fff3e0;
+            border-left: 4px solid var(--primary-orange);
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        /* Appointment Detail Modal */
+        #apt-detail-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 999;
+            display: none;
+            align-items: flex-end; /* Slide up from bottom */
+        }
+        .apt-modal-content {
+            background: white;
+            width: 100%;
+            border-radius: 24px 24px 0 0;
+            padding: 24px;
+            box-sizing: border-box;
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        .record-box {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 15px;
+            border: 1px dashed #ccc;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+
+        <div class="page" id="page-login">
+            <img src="images/logo.png" class="login-logo-img" alt="PetFile Logo">
+            <h2 style="text-align: center; font-weight: 800; font-size: 28px;">PetFile</h2>
+            <div class="form-group">
+                <input type="email" placeholder="Email" id="login-email" value="phuong.tran@email.com">
+            </div>
+            <div class="form-group">
+                <input type="password" placeholder="Password" id="login-password" value="123456">
+            </div>
+            <button class="btn btn-primary" onclick="handleLogin()">Log In</button>
+            <div class="login-links">
+                <a href="#" onclick="showPage('page-register')">Don't have an account? <strong>Sign up</strong></a>
+            </div>
+        </div>
+
+        <div class="page" id="page-register">
+            <div class="login-logo">📝</div>
+            <h2 style="text-align: center; font-weight: 800; font-size: 24px;">Tạo tài khoản mới</h2>
+            <p style="text-align:center; color:#666; font-size:14px; margin-bottom:20px;">Tham gia cộng đồng PetFile ngay</p>
+
+            <form onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <input type="text" id="reg-name" placeholder="Họ và tên" required>
+                </div>
+                <div class="form-group">
+                    <input type="email" id="reg-email" placeholder="Email" required>
+                </div>
+                <div class="form-group">
+                    <input type="tel" id="reg-phone" placeholder="Số điện thoại" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" id="reg-password" placeholder="Mật khẩu" required>
+                </div>
+                
+                <div class="form-group">
+                    <label style="font-size:14px; font-weight:700; margin-left:5px; display:block; margin-bottom:5px;">Bạn là ai?</label>
+                    <select id="reg-role" style="width: 100%; padding: 14px 18px; border: 1px solid #eee; border-radius: 12px; font-family: var(--font-family); font-size: 16px;">
+                        <option value="owner">Pet Owner (Chủ nuôi)</option>
+                        <option value="vet">Vet Clinic (Phòng khám)</option>
+                        <option value="spa">Pet Spa (Dịch vụ Spa)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="display:flex; align-items:center; gap:10px; margin-bottom: 24px;">
+                    <input type="checkbox" id="reg-policy" required style="width: 20px; height: 20px;">
+                    <label for="reg-policy" style="font-size:14px; line-height: 1.4;">
+                        Tôi đồng ý với <a href="#" style="color:var(--primary-orange)">Điều khoản sử dụng</a> và Chính sách bảo mật.
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Đăng Ký</button>
+            </form>
+
+            <div class="login-links">
+                <a href="#" onclick="showPage('page-login')">Đã có tài khoản? <strong>Đăng nhập</strong></a>
+            </div>
+        </div>
+
+        <div class="page list-page" id="page-dashboard">
+            <div class="header">
+                <span class="header-icon">&#9776;</span>
+                <strong>My Pets</strong> 
+                <span class="header-profile" onclick="showProfilePage()">🧑</span>
+            </div>
+            <div class="learn-list" id="dashboard-pet-list"></div>
+            <h3 class="section-title">Tools</h3>
+            <div class="learn-list">
+                <div class="learn-card" style="--card-color: var(--primary-green);" onclick="showPage('page-find-vet')">
+                    <div class="learn-icon">📍</div>
+                    <div class="learn-text"><strong>Find a Vet</strong><p>Find nearby clinics.</p></div>
+                </div>
+                <div class="learn-card" style="--card-color: var(--primary-blue);" onclick="showVetList()">
+                    <div class="learn-icon">🎥</div>
+                    <div class="learn-text"><strong>Contact Vet</strong><p>Chat & Video Consult.</p></div>
+                </div>
+                <div class="learn-card" style="--card-color: var(--primary-orange);" onclick="showBookingPage()">
+                    <div class="learn-icon">🗓️</div>
+                    <div class="learn-text"><strong>Appointments</strong><p>Book visits.</p></div>
+                </div>
+                <div class="learn-card" style="--card-color: var(--primary-purple);" onclick="handleCommunityClick()">
+                    <div class="learn-icon">👥</div>
+                    <div class="learn-text"><strong>Communities</strong><p>Breed groups & tips.</p></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page list-page" id="page-vet-list">
+            <div class="header">
+                <div onclick="showPage('page-dashboard')" style="cursor:pointer">&#8592;</div>
+                <strong>Contact Vet</strong>
+                <div style="width:20px"></div>
+            </div>
+            
+            <div class="search-bar-container">
+                <input type="text" id="vet-search" placeholder="Search vet name or clinic..." style="width:100%; padding:14px; border-radius:12px; border:1px solid #ddd;" onkeyup="filterVets()">
+            </div>
+
+            <h3 class="section-title">My Vets</h3>
+            <div id="list-my-vets"></div>
+
+            <h3 class="section-title">Recommended Nearby</h3>
+            <div id="list-nearby-vets"></div>
+        </div>
+
+        <div class="page detail-page" id="page-televet">
+            <div class="detail-header" style="--card-color: var(--primary-blue); height: 80px; padding-bottom: 20px;">
+                <div class="detail-nav" onclick="showVetList()">&#8592;</div>
+                <div style="font-size: 20px; color:white; font-weight:800; margin-top:-30px; text-align:center;">
+                    <span id="chat-vet-name">Dr. Nguyen</span> <br>
+                    <span style="font-size:12px; font-weight:400; opacity:0.9;" id="chat-vet-status"><span class="status-dot"></span>Online</span>
+                </div>
+            </div>
+            <div class="detail-content">
+                <div class="chat-container">
+                    <div class="chat-messages" id="chat-messages"></div>
+                    <div class="chat-input-area">
+                        <input type="text" id="chat-input" placeholder="Type a message..." style="flex:1; border:none; outline:none;">
+                        <button class="btn btn-primary" onclick="sendChatMessage()" style="width:auto; padding: 10px 20px;">➤</button>
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary" style="background-color: var(--primary-green); box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4);" onclick="startVideoCall()">
+                    📹 Start Video Consultation
+                </button>
+                <p style="text-align:center; color:#999; font-size:12px; margin-top:10px;">Secure & Encrypted Connection</p>
+            </div>
+        </div>
+
+        <div class="page detail-page" id="page-pet-detail">
+            <div class="detail-header" id="pet-detail-header" style="--card-color: var(--primary-gray);">
+                <div class="detail-nav" onclick="showPage('page-dashboard')">&#8592;</div>
+                <div class="detail-hero-image" id="pet-detail-icon">🐾</div>
+            </div>
+            
+            <button class="fab" id="pet-detail-fab" style="--card-color: var(--primary-gray);">&#10010;</button>
+            
+            <div class="detail-content">
+                <div class="detail-title-block">
+                    <strong id="pet-detail-name">Loading...</strong>
+                    <p id="pet-detail-desc">...</p>
+                </div>
+                <div class="detail-info-row">
+                    <strong>Age</strong><span id="pet-detail-age">...</span>
+                </div>
+                <div class="detail-info-row">
+                    <strong>Weight</strong><span id="pet-detail-weight">...</span>
+                </div>
+
+                <div id="pet-vaccine-alert" class="vaccine-alert" style="display:none;"></div>
+
+                <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
+                    Appointments 
+                    <span onclick="showBookingPage()" style="font-size:12px; color:var(--primary-blue); cursor:pointer;">+ Book</span>
+                </div>
+
+                <div id="pet-detail-appointments">Loading...</div>
+                
+                <div id="apt-detail-overlay" onclick="closeAptModal(event)">
+                    <div class="apt-modal-content">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+                            <h2 style="margin:0;" id="modal-apt-service">Service</h2>
+                            <span style="font-size:24px; cursor:pointer;" onclick="document.getElementById('apt-detail-overlay').style.display='none'">&times;</span>
+                        </div>
+                        
+                        <div class="detail-info-row">
+                            <strong>Date</strong> <span id="modal-apt-date">...</span>
+                        </div>
+                        <div class="detail-info-row">
+                            <strong>Time</strong> <span id="modal-apt-time">...</span>
+                        </div>
+                        <div class="detail-info-row">
+                            <strong>Vet</strong> <span id="modal-apt-vet">...</span>
+                        </div>
+                        <div class="detail-info-row">
+                            <strong>Status</strong> <span id="modal-apt-status">...</span>
+                        </div>
+
+                        <div class="record-box">
+                            <strong>📋 Medical Record / Results</strong>
+                            <p id="modal-apt-notes" style="font-size:14px; color:#555; margin-top:8px;">No details available yet.</p>
+                        </div>
+
+                        <button class="btn btn-primary" style="margin-top:20px;" onclick="document.getElementById('apt-detail-overlay').style.display='none'">Close</button>
+                    </div>
+                </div>
+                <div class="section-title">Health Timeline</div>
+                <div class="timeline-list" id="pet-detail-timeline"></div>
+                
+                <button class="btn btn-danger" style="margin-top: 24px;" id="btn-delete-pet">Delete Pet</button>
+            </div>
+        </div>
+
+        <div class="page detail-page" id="page-log-health">
+            <div class="detail-header" style="--card-color: var(--primary-red);">
+                <div class="detail-nav" onclick="backToPetDetail()">&#8592;</div>
+                <div class="detail-hero-image">🩺</div>
+            </div>
+            <div class="detail-content">
+                <div class="detail-title-block">
+                    <strong>Log Health Issue</strong>
+                    <p>Select a symptom to trigger context-aware analysis.</p>
+                </div>
+
+                <input type="hidden" id="log-pet-id">
+
+                <label style="font-weight:800; display:block; margin-bottom:10px;">Common Symptoms</label>
+                <div class="symptom-grid">
+                    <div class="symptom-card" onclick="selectSymptom('vomiting', this)">
+                        <span class="symptom-icon">🤮</span> Vomiting
+                    </div>
+                    <div class="symptom-card" onclick="selectSymptom('no_appetite', this)">
+                        <span class="symptom-icon">🥣</span> No Appetite
+                    </div>
+                    <div class="symptom-card" onclick="selectSymptom('lethargy', this)">
+                        <span class="symptom-icon">😴</span> Lethargy
+                    </div>
+                    <div class="symptom-card" onclick="selectSymptom('itching', this)">
+                        <span class="symptom-icon">🐜</span> Itching
+                    </div>
+                </div>
+
+                <div id="context-container" class="context-questions-box">
+                    <h5 style="margin: 0 0 10px 0; color: var(--primary-green);">🤖 Smart Analysis</h5>
+                    <p style="font-size: 13px; margin-bottom: 15px;">Based on this symptom, please check the following:</p>
+                    <div id="generated-questions"></div>
+                </div>
+
+                <div class="form-group-new" style="margin-top: 20px;">
+                    <label>Severity / Notes</label>
+                    <input type="text" id="log-severity" placeholder="e.g. Started 2 hours ago...">
+                </div>
+
+                <button class="btn btn-danger" onclick="submitHealthLog()">Save Health Log</button>
+            </div>
+        </div>
+
+        <div class="page detail-page" id="page-profile">
+            <div class="detail-header" style="--card-color: var(--primary-blue);">
+                <div class="detail-nav" onclick="showPage('page-dashboard')">&#8592;</div>
+                <div class="detail-hero-image">🧑</div>
+            </div>
+            <div class="detail-content">
+                <strong style="font-size:24px" id="profile-name">...</strong>
+                <p id="profile-email-val">...</p>
+                <div class="section-title">My Pets</div>
+                <div class="pet-list-container" id="profile-pet-list"></div>
+                <button class="btn btn-primary" style="margin-top: 24px;" onclick="showPage('page-add-pet')">Add New Pet</button>
+                <button class="btn btn-danger" style="margin-top: 12px;" onclick="logOut()">Log Out</button>
+            </div>
+        </div>
+
+        <div class="page detail-page" id="page-add-pet">
+            <div class="detail-header" style="--card-color: var(--primary-gray);">
+                <div class="detail-nav" onclick="showPage('page-profile')">&#8592;</div>
+                <div class="detail-hero-image">✏️</div>
+            </div>
+            <div class="detail-content">
+                <strong>Add New Pet</strong>
+                <form onsubmit="handleAddPet(event)" id="form-add-pet" style="margin-top:20px;">
+                    <div class="form-group-new"><label>Name</label><input type="text" id="add-pet-name" required></div>
+                    <div class="form-group-new">
+                        <label>Species</label>
+                        <select id="add-pet-species" required>
+                            <option value="Dog">Dog 🐶</option>
+                            <option value="Cat">Cat 🐱</option>
+                            <option value="Rabbit">Rabbit 🐰</option>
+                        </select>
+                    </div>
+                    <div class="form-group-new"><label>Breed</label><input type="text" id="add-pet-breed"></div>
+                    <div class="form-group-new"><label>Date of Birth</label><input type="date" id="add-pet-dob"></div>
+                    <div class="form-group-new"><label>Weight</label><input type="text" id="add-pet-weight"></div>
+                    <button type="submit" class="btn btn-primary">Save Pet</button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="page detail-page" id="page-find-vet">
+            <div class="detail-header" style="--card-color: var(--primary-green);">
+                <div class="detail-nav" onclick="showPage('page-dashboard')">&#8592;</div>
+                <div class="detail-hero-image">🏥</div>
+            </div>
+            <div class="detail-content">
+                <strong>Find a Vet</strong>
+                <input type="text" style="width:100%; padding:14px; margin-top:20px; border-radius:12px; border:1px solid #ddd;" placeholder="Search location...">
+                <div style="text-align:center; padding:40px; opacity:0.5;">Coming Soon</div>
+            </div>
+        </div>
+
+        <div class="page detail-page" id="page-appointment">
+            <div class="detail-header" style="--card-color: var(--primary-blue);">
+                <div class="detail-nav" onclick="showPage('page-dashboard')">&#8592;</div>
+                <div class="detail-hero-image">🗓️</div>
+            </div>
+            <div class="detail-content">
+                <strong>Book Appointment</strong>
+                <form onsubmit="handleBooking(event)" style="margin-top:20px;">
+                    <div class="form-group-new"><label>Pet</label><select id="apt-pet-select"></select></div>
+                    <div class="form-group-new"><label>Service</label><select id="apt-service-select"><option>Exam</option><option>Vaccine</option></select></div>
+                    <div class="form-group-new"><label>Date</label><input type="date" id="apt-date"></div>
+                    <button type="submit" class="btn btn-primary">Book Now</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="page detail-page" id="page-televet">
+            <div class="detail-header" style="--card-color: var(--primary-blue); height: 80px; padding-bottom: 20px;">
+                <div class="detail-nav" onclick="showPage('page-dashboard')">&#8592;</div>
+                <div style="font-size: 20px; color:white; font-weight:800; margin-top:-30px; text-align:center;">
+                    Dr. Nguyen (Vet) <br>
+                    <span style="font-size:12px; font-weight:400; opacity:0.9;"><span class="status-dot"></span>Online</span>
+                </div>
+            </div>
+            <div class="detail-content">
+                <div class="chat-container">
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="msg-bubble vet">Hello! I am Dr. Nguyen. How can I help your pet today?</div>
+                    </div>
+                    <div class="chat-input-area">
+                        <input type="text" id="chat-input" placeholder="Type a message..." style="flex:1; border:none; outline:none;">
+                        <button class="btn btn-primary" onclick="sendChatMessage()" style="width:auto; padding: 10px 20px;">➤</button>
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary" style="background-color: var(--primary-green); box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4);" onclick="startVideoCall()">
+                    📹 Start Video Consultation
+                </button>
+                <p style="text-align:center; color:#999; font-size:12px; margin-top:10px;">Secure & Encrypted Connection</p>
+            </div>
+        </div>
+
+        <div id="video-overlay">
+            <div>
+                <h3>Dr. Nguyen</h3>
+                <p>Connecting...</p>
+            </div>
+            <div class="video-caller-img">👨‍⚕️</div>
+            <div class="video-controls">
+                <button class="v-btn mute" onclick="alert('Muted')">🎤</button>
+                <button class="v-btn end" onclick="endVideoCall()">📞</button>
+            </div>
+        </div>
+
+        <div id="breed-select-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:200; align-items:center; justify-content:center; flex-direction:column;">
+            <div style="background:white; padding:20px; border-radius:16px; width:80%; max-width:300px; text-align:center;">
+                <h3 style="margin-top:0;">Select Community</h3>
+                <div id="breed-select-list" style="display:flex; flex-direction:column; gap:10px; margin-bottom:15px;"></div>
+                <button class="btn" style="background:#eee; color:#333;" onclick="document.getElementById('breed-select-overlay').style.display='none'">Cancel</button>
+            </div>
+        </div>
+
+        <div class="page detail-page" id="page-community">
+            <div class="comm-header">
+                <div class="detail-nav" onclick="backToPetDetailFromComm()" style="position: absolute; left: 20px; top: 20px;">&#8592;</div>
+                <h2 style="margin:0; font-size: 22px;">Community</h2>
+                <p id="comm-breed-name" style="margin:5px 0 0 0; opacity: 0.9; font-size: 14px;">Loading...</p>
+            </div>
+            
+            <div style="padding: 16px;">
+                <div class="comm-tabs">
+                    <div class="comm-tab active" onclick="switchCommTab('protocols')">Care & Risks</div>
+                    <div class="comm-tab" onclick="switchCommTab('forum')">Discussion</div>
+                </div>
+
+                <div id="tab-protocols" style="margin-top: 20px;">
+                    <div class="protocol-card">
+                        <div class="protocol-title">🧬 Genetic Red Flags</div>
+                        <p style="font-size:13px; color:#666; margin-bottom:15px;">Diseases this breed is predisposed to:</p>
+                        <div id="comm-risks-list"></div>
+                    </div>
+
+                    <div class="protocol-card">
+                        <div class="protocol-title">🛡️ Care Protocols</div>
+                        <div id="comm-tips-list"></div>
+                    </div>
+                </div>
+
+                <div id="tab-forum" style="display: none; margin-top: 20px; padding-bottom: 60px;">
+                    <div id="comm-posts-list"></div>
+                    <p style="text-align:center; color:#999; font-size:13px; margin-top:20px;">End of discussions</p>
+                </div>
+            </div>
+
+            <button class="fab-post" id="btn-add-post" onclick="showPostInput()">✏️</button>
+            
+            <div id="post-overlay" style="display:none; position:fixed; bottom:0; left:0; right:0; background:white; padding:20px; box-shadow:0 -5px 20px rgba(0,0,0,0.1); z-index:101; border-radius: 20px 20px 0 0;">
+                <strong>New Post</strong>
+                <textarea id="new-post-content" style="width:100%; height:80px; margin:10px 0; border:1px solid #ddd; border-radius:8px; padding:10px;" placeholder="Share a tip or ask a question..."></textarea>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn" style="background:#eee; color:#333;" onclick="document.getElementById('post-overlay').style.display='none'">Cancel</button>
+                    <button class="btn btn-primary" onclick="submitPost()">Post</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let localUserPets = [];
+        let socket;
+
+        // --- INTELLIGENT LOGIC CONSTANTS ---
+        const CONTEXT_LOGIC = {
+            'vomiting': [
+                { id: 'q1', text: "Has the pet eaten grass/foreign objects?" },
+                { id: 'q2', text: "Has the pet been dewormed recently?" },
+                { id: 'q3', text: "Is there blood in the vomit?" }
+            ],
+            'no_appetite': [
+                { id: 'q1', text: "Change in food brand recently?" },
+                { id: 'q2', text: "Is pet drinking water?" },
+                { id: 'q3', text: "Signs of dental pain?" }
+            ],
+            'lethargy': [
+                { id: 'q1', text: "Is nose dry/warm?" },
+                { id: 'q2', text: "Responsive to toys?" }
+            ],
+            'itching': [
+                { id: 'q1', text: "Visible fleas/ticks?" },
+                { id: 'q2', text: "New shampoo used?" }
+            ]
+        };
+        let currentSelectedSymptom = null;
+
+        // --- CORE FUNCTIONS ---
+
+        async function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+            const activePage = document.getElementById(pageId);
+            if (activePage) activePage.classList.add('active');
+            if (pageId === 'page-dashboard') await loadDashboardData();
+        }
+
+        function getAuthHeaders() {
+            const token = localStorage.getItem('authToken');
+            return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+        }
+
+        async function handleLogin() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    localStorage.setItem('authToken', data.token);
+                    await loadDashboardData();
+                    showPage('page-dashboard');
+                } else {
+                    alert(data.message);
+                }
+            } catch (error) { console.error(error); alert('Login error'); }
+        }
+
+        async function loadDashboardData() {
+            const container = document.getElementById('dashboard-pet-list');
+            container.innerHTML = 'Loading...';
+            try {
+                const response = await fetch('/api/pets', { headers: getAuthHeaders() });
+                const pets = await response.json();
+                localUserPets = pets;
+                container.innerHTML = '';
+                if (pets.length === 0) { container.innerHTML = '<p>No pets found.</p>'; return; }
+                pets.forEach(pet => {
+                    container.innerHTML += `
+                        <div class="learn-card" style="--card-color: var(${pet.color});" onclick="showPetDetail('${pet.id}')"> 
+                            <div class="learn-icon">${pet.icon}</div>
+                            <div class="learn-text"><strong>${pet.name}</strong><p>View profile</p></div>
+                        </div>`;
+                });
+            } catch (e) { logOut(); }
+        }
+
+        // --- TELE-VET FUNCTIONS ---
+        function startTelevet() {
+            showPage('page-televet');
+            if(!socket) {
+                initSocket();
+            }
+        }
+
+        function initSocket() {
+            socket = io();
+            
+            socket.on('connect', () => {
+                console.log("Connected to Tele-Vet");
+            });
+
+            socket.on('load_history', (history) => {
+                const container = document.getElementById('chat-messages');
+                container.innerHTML = '<div class="msg-bubble vet">Hello! I am Dr. Nguyen. How can I help your pet today?</div>';
+                history.forEach(msg => appendMessage(msg));
+                scrollToBottom();
+            });
+
+            socket.on('receive_message', (data) => {
+                appendMessage(data);
+                scrollToBottom();
+            });
+        }
+
+        function appendMessage(data) {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            const isMe = data.sender === 'user';
+            div.className = `msg-bubble ${isMe ? 'user' : 'vet'}`;
+            div.textContent = data.text;
+            container.appendChild(div);
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+            
+            socket.emit('send_message', { text: text, sender: 'user' });
+            input.value = '';
+        }
+
+        function scrollToBottom() {
+            const container = document.getElementById('chat-messages');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function startVideoCall() {
+            const overlay = document.getElementById('video-overlay');
+            overlay.style.display = 'flex';
+            // Simulate connection delay
+            setTimeout(() => {
+                overlay.querySelector('p').textContent = "00:01 - Connected";
+            }, 2000);
+        }
+
+        function endVideoCall() {
+            document.getElementById('video-overlay').style.display = 'none';
+        }
+
+        // --- PET DETAIL ---
+        async function showPetDetail(petId) {
+            showPage('page-pet-detail');
+            document.getElementById('pet-detail-name').textContent = 'Loading...';
+            
+            const timelineContainer = document.getElementById('pet-detail-timeline');
+            timelineContainer.innerHTML = '<div style="padding:15px; text-align:center;">Loading history...</div>';
+            document.getElementById('pet-detail-name').textContent = 'Loading...';
+            document.getElementById('pet-detail-desc').textContent = '...';
+            document.getElementById('pet-detail-appointments').innerHTML = 'Loading appointments...'; // Make sure this DIV exists
+            document.getElementById('pet-vaccine-alert').style.display = 'none'; // Hide alerts
+
+            try {
+                // 1. Fetch Basic Pet Info
+                
+                const res = await fetch(`/api/pets/${petId}`, { headers: getAuthHeaders() });
+                if (!res.ok) throw new Error("Pet not found");
+                const pet = await res.json();
+                
+                document.getElementById('pet-detail-name').textContent = pet.name;
+                document.getElementById('pet-detail-desc').textContent = pet.description;
+                document.getElementById('pet-detail-icon').textContent = pet.icon;
+                document.getElementById('pet-detail-age').textContent = pet.age;
+                document.getElementById('pet-detail-weight').textContent = pet.weight;
+                document.getElementById('pet-detail-header').style.cssText = `--card-color: var(${pet.color})`;
+                document.getElementById('pet-detail-fab').style.cssText = `--card-color: var(${pet.color})`;
+                
+                // Set FAB to open Log Page
+                const fab = document.getElementById('pet-detail-fab');
+                fab.onclick = () => showLogPage(pet.id);
+                fab.innerHTML = '🩺';
+
+                document.getElementById('btn-delete-pet').onclick = () => confirmDeletePet(pet.id, pet.name);
+                
+                // 2. Fetch Appointments (This is what was failing before)
+                const aptRes = await fetch(`/api/appointments/${petId}`, { headers: getAuthHeaders() });
+                let appointments = [];
+                if (aptRes.ok) {
+                    appointments = await aptRes.json();
+                    renderAppointments(appointments);       // Show the list
+                    checkVaccineNotifications(appointments, pet.name); // Show alerts
+                } else {
+                    document.getElementById('pet-detail-appointments').innerHTML = 'Could not load appointments.';
+                }
+
+                // 2. Fetch and Render Health Logs
+                const logRes = await fetch(`/api/health-logs/${pet.id}`, { headers: getAuthHeaders() });
+                const logs = await logRes.json();
+                
+                timelineContainer.innerHTML = '';
+                
+                if(logs.length === 0) {
+                    timelineContainer.innerHTML = '<p style="text-align:center;color:#999; padding:20px;">No health logs yet.</p>';
+                }
+                
+                logs.forEach(log => {
+                    const answerHtml = log.answers.map(a => 
+                        `<div style="font-size:12px; color:#555;">• ${a.question} <strong>${a.answer}</strong></div>`
+                    ).join('');
+                    
+                    const dateObj = new Date(log.date);
+                    const timeString = dateObj.toLocaleString('vi-VN', { 
+                        hour: '2-digit', minute: '2-digit', 
+                        day: '2-digit', month: '2-digit', year: 'numeric' 
+                    });
+
+                    timelineContainer.innerHTML += `
+                        <div class="timeline-item" style="align-items: flex-start;">
+                            <div class="timeline-icon" style="background:#ffebee; font-size:16px;">🚨</div>
+                            <div class="timeline-content" style="width:100%">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <h5 style="margin:0;">${log.symptom.toUpperCase()}</h5>
+                                    <small style="color:#888; font-size:11px;">${timeString}</small>
+                                </div>
+                                <p style="margin:4px 0;">"${log.severity}"</p>
+                                <div style="background:#f4f4f4; padding:8px; border-radius:8px; margin-top:5px;">
+                                    ${answerHtml}
+                                </div>
+                            </div>
+                        </div>`;
+                });
+
+            } catch (e) { 
+                console.error(e); 
+                document.getElementById('pet-detail-name').textContent = 'Error';
+            }
+        }
+
+        // --- NEW: INTELLIGENT LOGGING FUNCTIONS ---
+
+        function showLogPage(petId) {
+            document.getElementById('log-pet-id').value = petId;
+            document.querySelectorAll('.symptom-card').forEach(el => el.classList.remove('selected'));
+            document.getElementById('context-container').style.display = 'none';
+            document.getElementById('log-severity').value = '';
+            currentSelectedSymptom = null;
+            showPage('page-log-health');
+        }
+
+        function selectSymptom(symptomKey, element) {
+            document.querySelectorAll('.symptom-card').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+            currentSelectedSymptom = symptomKey;
+            
+            const questions = CONTEXT_LOGIC[symptomKey];
+            const container = document.getElementById('generated-questions');
+            container.innerHTML = '';
+            
+            if (questions) {
+                questions.forEach((q, index) => {
+                    container.innerHTML += `
+                        <div class="question-item">
+                            <label>${q.text}</label>
+                            <div class="question-options">
+                                <label class="radio-label"><input type="radio" name="ans_${index}" value="Yes"> Yes</label>
+                                <label class="radio-label"><input type="radio" name="ans_${index}" value="No"> No</label>
+                                <label class="radio-label"><input type="radio" name="ans_${index}" value="Unsure" checked> Unsure</label>
+                            </div>
+                        </div>`;
+                });
+                document.getElementById('context-container').style.display = 'block';
+            }
+        }
+
+        function backToPetDetail() {
+            showPetDetail(document.getElementById('log-pet-id').value);
+        }
+
+        async function submitHealthLog() {
+            if (!currentSelectedSymptom) return alert("Please select a symptom first.");
+            
+            const btn = document.querySelector('#page-log-health .btn-danger');
+            const originalText = btn.textContent;
+            btn.textContent = "Saving...";
+            btn.disabled = true;
+
+            const petId = document.getElementById('log-pet-id').value;
+            const severity = document.getElementById('log-severity').value;
+            const questions = CONTEXT_LOGIC[currentSelectedSymptom];
+            
+            let answers = [];
+            if (questions) {
+                 answers = questions.map((q, index) => {
+                    const checked = document.querySelector(`input[name="ans_${index}"]:checked`);
+                    return { 
+                        question: q.text, 
+                        answer: checked ? checked.value : "Unsure" 
+                    };
+                });
+            }
+
+            try {
+                const res = await fetch('/api/health-logs', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ petId, symptom: currentSelectedSymptom, severity, answers })
+                });
+
+                const result = await res.json();
+
+                if (res.ok && result.success) {
+                    alert("Saved successfully!");
+                    showPetDetail(petId);
+                } else {
+                    alert("Failed to save: " + (result.message || "Unknown error"));
+                }
+            } catch (e) { 
+                console.error(e); 
+                alert("Network error.");
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // --- NEW: VET LIST LOGIC ---
+
+        async function showVetList() {
+            showPage('page-vet-list');
+            const myVetsContainer = document.getElementById('list-my-vets');
+            const nearbyContainer = document.getElementById('list-nearby-vets');
+            myVetsContainer.innerHTML = 'Loading...';
+            nearbyContainer.innerHTML = 'Loading...';
+
+            try {
+                const res = await fetch('/api/vets', { headers: getAuthHeaders() });
+                allVets = await res.json();
+                renderVets(allVets);
+            } catch(e) { console.error(e); }
+        }
+
+        function renderVets(vets) {
+            const myVetsContainer = document.getElementById('list-my-vets');
+            const nearbyContainer = document.getElementById('list-nearby-vets');
+            myVetsContainer.innerHTML = '';
+            nearbyContainer.innerHTML = '';
+
+            const myVets = vets.filter(v => v.saved);
+            const nearbyVets = vets.filter(v => !v.saved);
+
+            if(myVets.length === 0) myVetsContainer.innerHTML = '<p style="font-size:14px; color:#777;">No saved vets.</p>';
+            myVets.forEach(v => myVetsContainer.appendChild(createVetCard(v)));
+
+            if(nearbyVets.length === 0) nearbyContainer.innerHTML = '<p style="font-size:14px; color:#777;">No nearby vets found.</p>';
+            nearbyVets.forEach(v => nearbyContainer.appendChild(createVetCard(v)));
+        }
+
+        function createVetCard(vet) {
+            const div = document.createElement('div');
+            div.className = 'vet-card';
+            div.innerHTML = `
+                <div class="vet-img">${vet.img}</div>
+                <div class="vet-info">
+                    <span class="vet-name">${vet.name}</span>
+                    <span class="vet-sub">${vet.clinic} • ${vet.dist}</span>
+                    <br>
+                    <span class="vet-status ${vet.status}">${vet.status.toUpperCase()}</span>
+                </div>
+                <div class="vet-action" onclick="openChatWithVet(${vet.id})">💬</div>
+            `;
+            return div;
+        }
+
+        function filterVets() {
+            const query = document.getElementById('vet-search').value.toLowerCase();
+            const filtered = allVets.filter(v => 
+                v.name.toLowerCase().includes(query) || 
+                v.clinic.toLowerCase().includes(query)
+            );
+            renderVets(filtered);
+        }
+
+        // --- CHAT LOGIC ---
+
+        function openChatWithVet(vetId) {
+            const vet = allVets.find(v => v.id === vetId);
+            if(!vet) return;
+            currentChatVet = vet;
+            
+            // Update Header
+            document.getElementById('chat-vet-name').textContent = vet.name;
+            const statusEl = document.getElementById('chat-vet-status');
+            statusEl.innerHTML = `<span class="status-dot" style="background:${vet.status === 'online' ? '#2ECC71' : '#95a5a6'}"></span>${vet.status === 'online' ? 'Online' : 'Offline'}`;
+
+            showPage('page-televet');
+            if(!socket) initSocket();
+            else {
+                // Clear chat and reload
+                document.getElementById('chat-messages').innerHTML = '';
+                // In real app, emit 'join_room', {vetId}
+            }
+        }
+
+        function initSocket() {
+            socket = io();
+            socket.on('connect', () => console.log("Connected to Tele-Vet"));
+            socket.on('load_history', (history) => {
+                // In real app filter by vet ID
+                history.forEach(msg => appendMessage(msg));
+            });
+            socket.on('receive_message', (data) => {
+                appendMessage(data);
+                scrollToBottom();
+            });
+        }
+
+        function appendMessage(data) {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            const isMe = data.sender === 'user';
+            div.className = `msg-bubble ${isMe ? 'user' : 'vet'}`;
+            div.textContent = data.text;
+            container.appendChild(div);
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+            // Send vet Name so we know who we spoke to
+            socket.emit('send_message', { 
+                text: text, 
+                sender: 'user', 
+                vetName: currentChatVet ? currentChatVet.name : 'Unknown' 
+            });
+            input.value = '';
+        }
+
+        function scrollToBottom() {
+            const container = document.getElementById('chat-messages');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function startVideoCall() {
+            document.getElementById('video-overlay').style.display = 'flex';
+        }
+        function endVideoCall() {
+            document.getElementById('video-overlay').style.display = 'none';
+        }
+
+        // --- OTHER UTILS ---
+        
+        async function showProfilePage() {
+            try {
+                const res = await fetch('/api/profile', { headers: getAuthHeaders() });
+                const user = await res.json();
+                document.getElementById('profile-name').textContent = user.name;
+                document.getElementById('profile-email-val').textContent = user.email;
+                
+                const petContainer = document.getElementById('profile-pet-list');
+                petContainer.innerHTML = '';
+                localUserPets.forEach(pet => {
+                    petContainer.innerHTML += `<div class="pet-list-item" onclick="showPetDetail('${pet.id}')">
+                        <span class="pet-list-item-icon">${pet.icon}</span>
+                        <strong>${pet.name}</strong>
+                    </div>`;
+                });
+                showPage('page-profile');
+            } catch (e) { logOut(); }
+        }
+
+        async function handleAddPet(e) {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('add-pet-name').value,
+                species: document.getElementById('add-pet-species').value,
+                breed: document.getElementById('add-pet-breed').value,
+                dob: document.getElementById('add-pet-dob').value,
+                weight: document.getElementById('add-pet-weight').value
+            };
+            try {
+                const res = await fetch('/api/pets', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(data) });
+                if (res.ok) {
+                    alert('Pet added!');
+                    document.getElementById('form-add-pet').reset();
+                    showProfilePage();
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        function appendMessage(data) {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            
+            // Logic: Nếu sender là 'user' -> Class 'user' (Phải)
+            // Nếu sender là 'vet' -> Class 'vet' (Trái)
+            const isMe = data.sender === 'user';
+            
+            div.className = `msg-bubble ${isMe ? 'user' : 'vet'}`;
+            div.textContent = data.text;
+            
+            container.appendChild(div);
+            scrollToBottom(); // Tự động cuộn xuống
+        }
+
+        async function handleDeletePet(petId) {
+            try {
+                const res = await fetch(`/api/pets/${petId}`, { method: 'DELETE', headers: getAuthHeaders() });
+                if (res.ok) { alert('Deleted'); showPage('page-dashboard'); }
+            } catch (e) { console.error(e); }
+        }
+        function confirmDeletePet(id, name) { if(confirm('Delete ' + name + '?')) handleDeletePet(id); }
+
+        function showBookingPage() {
+            const select = document.getElementById('apt-pet-select');
+            select.innerHTML = '';
+            localUserPets.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id; opt.text = p.name;
+                select.add(opt);
+            });
+            showPage('page-appointment');
+        }
+
+        function logOut() {
+            localStorage.removeItem('authToken');
+            showPage('page-login');
+        }
+
+        // --- Thêm vào script trong index.html ---
+
+        async function handleRegister(e) {
+            e.preventDefault(); // Ngăn load lại trang
+
+            // 1. Lấy dữ liệu từ form
+            const name = document.getElementById('reg-name').value;
+            const email = document.getElementById('reg-email').value;
+            const phone = document.getElementById('reg-phone').value;
+            const password = document.getElementById('reg-password').value;
+            const role = document.getElementById('reg-role').value;
+            const policy = document.getElementById('reg-policy').checked;
+
+            // 2. Validate Policy (dù HTML có required, check thêm cho chắc)
+            if (!policy) {
+                alert("Bạn cần đồng ý với điều khoản sử dụng để tiếp tục.");
+                return;
+            }
+
+            const registerBtn = document.querySelector('#page-register .btn-primary');
+            const originalText = registerBtn.textContent;
+            registerBtn.textContent = "Đang xử lý...";
+            registerBtn.disabled = true;
+
+            try {
+                // 3. Gọi API
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, phone, password, role })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // 4. Thông báo và Redirect
+                    alert("🎉 " + data.message);
+                    
+                    // Reset form
+                    document.getElementById('reg-name').value = '';
+                    document.getElementById('reg-email').value = '';
+                    document.getElementById('reg-phone').value = '';
+                    document.getElementById('reg-password').value = '';
+                    document.getElementById('reg-policy').checked = false;
+
+                    // Chuyển về trang login và điền sẵn email
+                    document.getElementById('login-email').value = email;
+                    showPage('page-login');
+                } else {
+                    alert("Lỗi: " + data.message);
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Có lỗi xảy ra khi kết nối tới server.");
+            } finally {
+                registerBtn.textContent = originalText;
+                registerBtn.disabled = false;
+            }
+        }
+        
+        // --- NEW FUNCTION: Render Appointment List ---
+        function renderAppointments(appointments) {
+            const container = document.getElementById('pet-detail-appointments');
+            container.innerHTML = '';
+
+            if (appointments.length === 0) {
+                container.innerHTML = '<div style="color:#999; font-size:14px; padding:10px 0;">No appointments found.</div>';
+                return;
+            }
+
+            appointments.forEach(apt => {
+                // Calculate status dynamically if not set
+                let status = apt.status || 'upcoming';
+                const aptDate = new Date(apt.date);
+                const today = new Date();
+                
+                // Simple logic: if date is passed and status is still upcoming, mark as done or missing
+                // (In a real app, the Vet would update this manually)
+                if (status === 'upcoming' && aptDate < today) {
+                    status = 'done'; 
+                }
+
+                container.innerHTML += `
+                    <div class="apt-card" onclick='openAptModal(${JSON.stringify(apt)})'>
+                        <div>
+                            <div class="apt-date">${aptDate.toLocaleDateString('vi-VN')}</div>
+                            <div class="apt-sub">${apt.service} with ${apt.vetName || 'Dr. Vet'}</div>
+                        </div>
+                        <div style="text-align:right">
+                            <span class="apt-status ${status}">${status}</span>
+                            <div class="apt-sub" style="margin-top:4px;">${apt.time}</div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // --- NEW FUNCTION: Notification Logic ---
+        function checkVaccineNotifications(appointments, petName) {
+            const alertBox = document.getElementById('pet-vaccine-alert');
+            const today = new Date();
+            
+            // Find upcoming vaccines
+            const upcomingVaccines = appointments.filter(apt => {
+                const aptDate = new Date(apt.date);
+                return apt.service.toLowerCase().includes('vaccine') && 
+                    apt.status === 'upcoming' &&
+                    aptDate >= today;
+            });
+
+            if (upcomingVaccines.length > 0) {
+                // Find the closest one
+                const nextVaccine = upcomingVaccines[upcomingVaccines.length - 1]; // sorted
+                const dateStr = new Date(nextVaccine.date).toLocaleDateString('vi-VN');
+                
+                alertBox.innerHTML = `
+                    <span style="font-size:24px; margin-right:10px;">💉</span>
+                    <div>
+                        <strong>Vaccination Reminder</strong>
+                        <br> ${petName} has a vaccine on ${dateStr}.
+                    </div>
+                `;
+                alertBox.style.display = 'flex';
+                
+                // Optional: Browser Notification
+                if ("Notification" in window && Notification.permission === "granted") {
+                new Notification(`Vaccine Reminder: ${petName}`, { body: `Upcoming on ${dateStr}` });
+                } else if ("Notification" in window && Notification.permission !== "denied") {
+                    Notification.requestPermission();
+                }
+            }
+        }
+
+        // --- NEW FUNCTION: Open Modal Logic ---
+        function openAptModal(apt) {
+            document.getElementById('apt-detail-overlay').style.display = 'flex';
+            
+            document.getElementById('modal-apt-service').textContent = apt.service;
+            document.getElementById('modal-apt-date').textContent = new Date(apt.date).toLocaleDateString('vi-VN');
+            document.getElementById('modal-apt-time').textContent = apt.time;
+            document.getElementById('modal-apt-vet').textContent = apt.vetName || 'Unassigned';
+            
+            const statusEl = document.getElementById('modal-apt-status');
+            statusEl.textContent = (apt.status || 'Upcoming').toUpperCase();
+            statusEl.className = `apt-status ${apt.status || 'upcoming'}`; // Reset class
+
+            // Handle Medical Record Details
+            const notesEl = document.getElementById('modal-apt-notes');
+            if (apt.status === 'done') {
+                // Determine "result" based on service type
+                let details = "";
+                if (apt.service.toLowerCase().includes('vaccine')) {
+                    details = "<strong>Type:</strong> Rabies & DHPP<br><strong>Next Due:</strong> 1 year";
+                } else {
+                    details = "<strong>Prescription:</strong> Vitamins<br><strong>Notes:</strong> Pet is healthy.";
+                }
+                notesEl.innerHTML = details;
+            } else {
+                notesEl.textContent = "Results will appear here after the appointment.";
+            }
+        }
+
+        function closeAptModal(e) {
+            if(e.target.id === 'apt-detail-overlay') {
+                e.target.style.display = 'none';
+            }
+        }
+
+        // --- NEW: COMMUNITY LOGIC ---
+        let currentCommBreed = '';
+        let currentCommPetId = '';
+
+        async function showCommunityPage(breed, petId) {
+            currentCommBreed = breed;
+            currentCommPetId = petId;
+            
+            showPage('page-community');
+            document.getElementById('comm-breed-name').textContent = `${breed} Owners Group`;
+            
+            // Load Data song song
+            await Promise.all([
+                loadBreedInfo(breed),
+                loadCommunityPosts(breed)
+            ]);
+        }
+
+        function backToPetDetailFromComm() {
+            showPetDetail(currentCommPetId);
+        }
+
+        function switchCommTab(tabName) {
+            // UI toggle
+            document.querySelectorAll('.comm-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active'); // Lưu ý: event cần được pass vào hoặc lấy từ window.event
+            
+            if (tabName === 'protocols') {
+                document.getElementById('tab-protocols').style.display = 'block';
+                document.getElementById('tab-forum').style.display = 'none';
+                document.getElementById('btn-add-post').style.display = 'none';
+            } else {
+                document.getElementById('tab-protocols').style.display = 'none';
+                document.getElementById('tab-forum').style.display = 'block';
+                document.getElementById('btn-add-post').style.display = 'flex';
+            }
+        }
+
+        async function loadBreedInfo(breed) {
+            try {
+                // Encode URI để xử lý tên có dấu cách (Golden Retriever)
+                const res = await fetch(`/api/breed-info/${encodeURIComponent(breed)}`, { headers: getAuthHeaders() });
+                const data = await res.json();
+                
+                // Render Health Risks
+                const risksContainer = document.getElementById('comm-risks-list');
+                risksContainer.innerHTML = '';
+                if(data.healthRisks && data.healthRisks.length > 0) {
+                    data.healthRisks.forEach(risk => {
+                        risksContainer.innerHTML += `<div class="warning-box"><strong>⚠️ ${risk}</strong></div>`;
+                    });
+                } else {
+                    risksContainer.innerHTML = '<p>No specific red flags data.</p>';
+                }
+
+                // Render Care Tips
+                const tipsContainer = document.getElementById('comm-tips-list');
+                tipsContainer.innerHTML = '';
+                if(data.careTips && data.careTips.length > 0) {
+                    data.careTips.forEach(tip => {
+                        tipsContainer.innerHTML += `<div class="tip-box">✅ ${tip}</div>`;
+                    });
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadCommunityPosts(breed) {
+            const container = document.getElementById('comm-posts-list');
+            container.innerHTML = 'Loading discussions...';
+            try {
+                const res = await fetch(`/api/community/${encodeURIComponent(breed)}`, { headers: getAuthHeaders() });
+                const posts = await res.json();
+                
+                container.innerHTML = '';
+                if (posts.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">Be the first to post!</div>';
+                    return;
+                }
+
+                posts.forEach(post => {
+                    const date = new Date(post.timestamp).toLocaleDateString('vi-VN');
+                    container.innerHTML += `
+                        <div class="post-card">
+                            <span class="post-user">${post.userName}</span>
+                            <div class="post-content">${post.content}</div>
+                            <div class="post-meta">
+                                <span>${date}</span>
+                                <span>❤️ ${post.likes}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        function showPostInput() {
+            document.getElementById('post-overlay').style.display = 'block';
+            document.getElementById('new-post-content').focus();
+        }
+
+        async function submitPost() {
+            const content = document.getElementById('new-post-content').value;
+            if (!content.trim()) return;
+
+            try {
+                const res = await fetch('/api/community', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ breed: currentCommBreed, content })
+                });
+                
+                if (res.ok) {
+                    document.getElementById('post-overlay').style.display = 'none';
+                    document.getElementById('new-post-content').value = '';
+                    loadCommunityPosts(currentCommBreed); // Reload list
+                }
+            } catch (e) { alert('Error posting'); }
+        }
+
+        function handleCommunityClick() {
+            if (localUserPets.length === 0) {
+                alert("Vui lòng thêm thú cưng trước để tham gia cộng đồng!");
+                return;
+            }
+
+            // Lọc ra danh sách các giống loài duy nhất (Unique Breeds)
+            const uniqueBreeds = [...new Set(localUserPets.map(p => p.breed))];
+
+            if (uniqueBreeds.length === 1) {
+                // Nếu chỉ có 1 giống, vào thẳng
+                const breed = uniqueBreeds[0];
+                const pet = localUserPets.find(p => p.breed === breed);
+                showCommunityPage(breed, pet.id);
+            } else {
+                // Nếu có nhiều giống, hiện bảng chọn
+                const listContainer = document.getElementById('breed-select-list');
+                listContainer.innerHTML = '';
+                
+                uniqueBreeds.forEach(breed => {
+                    const pet = localUserPets.find(p => p.breed === breed);
+                    const btn = document.createElement('button');
+                    btn.className = 'btn btn-primary';
+                    btn.style.textAlign = 'left';
+                    btn.innerHTML = `${pet.icon} <strong>${breed}</strong>`;
+                    btn.onclick = () => {
+                        document.getElementById('breed-select-overlay').style.display = 'none';
+                        showCommunityPage(breed, pet.id);
+                    };
+                    listContainer.appendChild(btn);
+                });
+
+                document.getElementById('breed-select-overlay').style.display = 'flex';
+            }
+        }
+
+        // --- ADD THIS FUNCTION TO YOUR SCRIPT ---
+
+        async function handleBooking(e) {
+            e.preventDefault(); // Stop the page from reloading
+            
+            // 1. Get values from the form
+            const petId = document.getElementById('apt-pet-select').value;
+            const service = document.getElementById('apt-service-select').value;
+            const date = document.getElementById('apt-date').value;
+
+            // Validation
+            if (!petId || !date) {
+                alert("Please select a pet and a date.");
+                return;
+            }
+
+            const btn = e.target.querySelector('button');
+            const originalText = btn.textContent;
+            btn.textContent = "Booking...";
+            btn.disabled = true;
+
+            try {
+                // 2. Send to Server
+                const res = await fetch('/api/appointments', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        petId: petId,
+                        service: service,
+                        date: date,
+                        time: "09:00", // Default time (or add a time input to your form)
+                        notes: "Booked via App"
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    alert("Booking Successful! ✅");
+                    // 3. Go back to the specific pet's page to see the new appointment
+                    showPetDetail(petId); 
+                } else {
+                    alert("Error: " + data.message);
+                }
+
+            } catch (error) {
+                console.error(error);
+                alert("Connection error");
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // --- INIT ---
+        if (localStorage.getItem('authToken')) {
+            loadDashboardData().then(() => showPage('page-dashboard'));
+        } else {
+            showPage('page-login');
+        }
+        
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
+    
+
+    
+    </script>
+</body>
+</html>

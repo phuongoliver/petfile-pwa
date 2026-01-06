@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  tele-vet-app:
+    container_name: tele-vet-app
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - NODE_ENV=production
+    volumes:
+      # Persist the database file so data isn't lost on restart
+      - ./db.json:/app/db.json
+    restart: unless-stopped
